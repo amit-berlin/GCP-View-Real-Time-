@@ -5,44 +5,7 @@ import graphviz
 
 st.set_page_config(page_title="GCP Cloud Architecture Designer (MVP)", layout="wide")
 st.title("🏗️ GCP Cloud Architecture Designer + Agentic AI Verifier (MVP)")
-st.caption("Adjust sliders → real-time GCP architecture diagram + BOM + agentic verification")
-
-# ---------------------- 20 Backend Steps ----------------------
-st.subheader("📜 How This Works (20 Steps)")
-
-steps = [
-    "1. User sets 15 architecture parameters via sliders (users, latency, RAG size, etc.).",
-    "2. Each slider input maps to architecture components and scale decisions.",
-    "3. System identifies API layer and serving layer (Cloud Run / Vertex AI Endpoints).",
-    "4. Determines ingestion pipelines (streaming vs batch) based on data volume and freshness.",
-    "5. Determines processing layer (Dataflow, Dataproc, BigQuery, Cloud Composer).",
-    "6. Chooses storage layer (Cloud SQL, BigQuery, Firestore, Vector DB).",
-    "7. Configures RAG pipeline architecture (Retriever + Vector DB + LLM).",
-    "8. Configures Agentic AI orchestration (LangChain/LangGraph style, serverless agents).",
-    "9. Selects embedding pipeline (CPU workers or Vertex AI embeddings endpoints).",
-    "10. Maps model serving infrastructure (Cloud Run / Vertex AI depending on size/latency).",
-    "11. Sets MLOps & monitoring layer (Vertex AI Experiments, logging, metrics).",
-    "12. Sets CI/CD pipelines (GitHub Actions → Cloud Build → Deploy).",
-    "13. Determines DR & resilience strategy (multi-region, backups, RPO/RTO).",
-    "14. Generates full GCP architecture DOT diagram (Graphviz) dynamically.",
-    "15. Generates Bill of Materials (BOM) detailing all selected components.",
-    "16. Generates rationale for each component selection based on slider inputs.",
-    "17. Runs a lightweight free open-source LLM agent to verify architecture.",
-    "18. Agent cross-checks architecture against local knowledge snippets (GCP docs, blogs).",
-    "19. Displays agent’s feedback (warnings or confirmations) in real-time.",
-    "20. Final output: architecture diagram + BOM + Agent feedback for interview demonstration."
-]
-
-with st.expander("Show 20 Steps"):
-    for s in steps:
-        st.markdown(f"- {s}")
-
-st.warning("""
-⚠️ Accuracy Note: Using free LLMs (like FLAN-T5) or small HuggingFace models:
-- Knowledge is limited to pre-trained datasets, may miss latest GCP updates.
-- Cannot crawl live web pages in free Streamlit.
-- RAG verification uses local snippets only, so correctness is approximate.
-""")
+st.caption("Adjust sliders → real-time GCP architecture flowchart + BOM + verification")
 
 # ---------------------- 15 Input Sliders ----------------------
 st.subheader("1️⃣ Architecture Inputs (15 sliders)")
@@ -100,28 +63,38 @@ def architecture_logic():
 
 arch = architecture_logic()
 
-# ---------------------- Graphviz Architecture Diagram (Real-time) ----------------------
-st.subheader("2️⃣ Real-time Architecture Diagram")
-
-def build_dot(arch_dict):
-    dot = "digraph G { rankdir=LR; node [shape=box, style=rounded, fillcolor=\"#EEF5FF\"];\n"
+# ---------------------- Real-time Flowchart Diagram ----------------------
+st.subheader("2️⃣ Real-time Flowchart Diagram")
+def build_flowchart(arch_dict):
+    dot = "digraph G { rankdir=TB; splines=ortho; node [shape=box, style=filled, fillcolor=\"#D0E4F7\", fontsize=12];\n"
+    # Add nodes for each component
     for cluster, nodes in arch_dict.items():
-        dot += f'subgraph cluster_{cluster.replace(" ", "_")} {{ label="{cluster}"; style=rounded; color="#999999";\n'
         for i, n in enumerate(nodes if isinstance(nodes,list) else [nodes]):
-            dot += f'"{cluster}_{i}" [label="{n}"];\n'
-        dot += "}\n"
-    # edges
-    edges = [("API Layer", "Agentic AI"), ("Agentic AI", "RAG Stack"), ("RAG Stack", "LLM Serving"),
-             ("Ingestion", "Processing"), ("Processing", "Storage"), ("Storage", "RAG Stack")]
-    for a,b in edges:
-        dot += f'"cluster_{a.replace(" ", "_")}" -> "cluster_{b.replace(" ", "_")}" [style=dashed];\n'
+            node_name = f"{cluster}_{i}".replace(" ", "_")
+            dot += f'"{node_name}" [label="{n}\\n({cluster})"];\n'
+    # Add edges for data flow (arrows)
+    edges = [
+        ("API Layer", "Agentic AI"), 
+        ("Agentic AI", "RAG Stack"), 
+        ("RAG Stack", "LLM Serving"),
+        ("Ingestion", "Processing"), 
+        ("Processing", "Storage"), 
+        ("Storage", "RAG Stack"),
+        ("MLOps", "LLM Serving"),
+        ("CI/CD", "API Layer"),
+        ("DR/Resilience", "Storage")
+    ]
+    for src, tgt in edges:
+        for i_src, s in enumerate(arch_dict[src] if isinstance(arch_dict[src], list) else [arch_dict[src]]):
+            for i_tgt, t in enumerate(arch_dict[tgt] if isinstance(arch_dict[tgt], list) else [arch_dict[tgt]]):
+                dot += f'"{src}_{i_src}" -> "{tgt}_{i_tgt}" [color=gray, arrowhead=vee];\n'
     dot += "}"
     return dot
 
-dot = build_dot(arch)
-st.graphviz_chart(dot, use_container_width=True)  # Real-time updates as sliders move
+dot = build_flowchart(arch)
+st.graphviz_chart(dot, use_container_width=True)
 
-# ---------------------- Bill of Materials & Explanation ----------------------
+# ---------------------- BOM + Rationale ----------------------
 st.subheader("3️⃣ Bill of Materials & Rationale")
 st.json(arch)
 
@@ -145,8 +118,8 @@ agent_feedback = agentic_verifier(arch)
 for f in agent_feedback:
     st.write(f)
 
-# ---------------------- Download BOM / DOT ----------------------
-st.subheader("5️⃣ Download Outputs")
+# ---------------------- Download Outputs ----------------------
+st.subheader("5️⃣ Download BOM + Flowchart")
 bom_json = json.dumps({
     "architecture": arch,
     "agent_feedback": agent_feedback,
@@ -162,4 +135,4 @@ bom_json = json.dumps({
 }, indent=2)
 
 st.download_button("⬇️ Download BOM + Verification (JSON)", bom_json, "gcp_architecture_bom.json", "application/json")
-st.download_button("⬇️ Download DOT Diagram", dot, "gcp_architecture.dot", "text/plain")
+st.download_button("⬇️ Download Flowchart DOT", dot, "gcp_architecture_flowchart.dot", "text/plain")
