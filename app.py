@@ -1,11 +1,11 @@
 import streamlit as st
 import json
 from datetime import datetime
-import graphviz
+from streamlit_agraph import agraph, Node, Edge, Config
 
 st.set_page_config(page_title="GCP Cloud Architecture Designer (MVP)", layout="wide")
 st.title("🏗️ GCP Cloud Architecture Designer + Agentic AI Verifier (MVP)")
-st.caption("Adjust sliders → real-time GCP architecture flowchart + BOM + verification")
+st.caption("Adjust sliders → real-time interactive GCP architecture diagram + BOM + verification")
 
 # ---------------------- 15 Input Sliders ----------------------
 st.subheader("1️⃣ Architecture Inputs (15 sliders)")
@@ -63,38 +63,41 @@ def architecture_logic():
 
 arch = architecture_logic()
 
-# ---------------------- Real-time Flowchart Diagram ----------------------
-st.subheader("2️⃣ Real-time Flowchart Diagram")
-def build_flowchart(arch_dict):
-    dot = "digraph G { rankdir=TB; splines=ortho; node [shape=box, style=filled, fillcolor=\"#D0E4F7\", fontsize=12];\n"
-    # Add nodes for each component
-    for cluster, nodes in arch_dict.items():
-        for i, n in enumerate(nodes if isinstance(nodes,list) else [nodes]):
-            node_name = f"{cluster}_{i}".replace(" ", "_")
-            dot += f'"{node_name}" [label="{n}\\n({cluster})"];\n'
-    # Add edges for data flow (arrows)
-    edges = [
-        ("API Layer", "Agentic AI"), 
-        ("Agentic AI", "RAG Stack"), 
-        ("RAG Stack", "LLM Serving"),
-        ("Ingestion", "Processing"), 
-        ("Processing", "Storage"), 
-        ("Storage", "RAG Stack"),
-        ("MLOps", "LLM Serving"),
-        ("CI/CD", "API Layer"),
-        ("DR/Resilience", "Storage")
-    ]
-    for src, tgt in edges:
-        for i_src, s in enumerate(arch_dict[src] if isinstance(arch_dict[src], list) else [arch_dict[src]]):
-            for i_tgt, t in enumerate(arch_dict[tgt] if isinstance(arch_dict[tgt], list) else [arch_dict[tgt]]):
-                dot += f'"{src}_{i_src}" -> "{tgt}_{i_tgt}" [color=gray, arrowhead=vee];\n'
-    dot += "}"
-    return dot
+# ---------------------- Real-time Interactive Flowchart ----------------------
+st.subheader("2️⃣ Real-time Interactive Flowchart")
 
-dot = build_flowchart(arch)
-st.graphviz_chart(dot, use_container_width=True)
+# Build nodes
+nodes = []
+edges = []
+for cluster, comps in arch.items():
+    for i, c in enumerate(comps if isinstance(comps,list) else [comps]):
+        node_id = f"{cluster}_{i}"
+        nodes.append(Node(id=node_id, label=f"{c}\n({cluster})"))
 
-# ---------------------- BOM + Rationale ----------------------
+# Define edges (arrows)
+flow_edges = [
+    ("API Layer", "Agentic AI"), 
+    ("Agentic AI", "RAG Stack"), 
+    ("RAG Stack", "LLM Serving"),
+    ("Ingestion", "Processing"), 
+    ("Processing", "Storage"), 
+    ("Storage", "RAG Stack"),
+    ("MLOps", "LLM Serving"),
+    ("CI/CD", "API Layer"),
+    ("DR/Resilience", "Storage")
+]
+
+for src, tgt in flow_edges:
+    src_nodes = arch[src] if isinstance(arch[src], list) else [arch[src]]
+    tgt_nodes = arch[tgt] if isinstance(arch[tgt], list) else [arch[tgt]]
+    for i_s, s in enumerate(src_nodes):
+        for i_t, t in enumerate(tgt_nodes):
+            edges.append(Edge(source=f"{src}_{i_s}", target=f"{tgt}_{i_t}"))
+
+config = Config(width=1200, height=600, directed=True, physics=False)
+agraph(nodes=nodes, edges=edges, config=config)
+
+# ---------------------- Bill of Materials & Rationale ----------------------
 st.subheader("3️⃣ Bill of Materials & Rationale")
 st.json(arch)
 
@@ -135,4 +138,3 @@ bom_json = json.dumps({
 }, indent=2)
 
 st.download_button("⬇️ Download BOM + Verification (JSON)", bom_json, "gcp_architecture_bom.json", "application/json")
-st.download_button("⬇️ Download Flowchart DOT", dot, "gcp_architecture_flowchart.dot", "text/plain")
